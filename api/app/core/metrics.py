@@ -5,6 +5,7 @@ Day 4 (AIOps) sẽ scrape /metrics. Các metric chọn lọc để dạy anomaly
 - ingestion queue depth (dễ inject backlog sau khi tách worker)
 - error counter
 """
+
 from prometheus_client import Counter, Gauge, Histogram
 
 # Request-level
@@ -55,7 +56,9 @@ ingestion_jobs_total = Counter(
     "Tổng số tài liệu đã được gửi xử lý",
 )
 
-# Queue depth — tăng khi enqueue (documents.py), giảm khi worker bắt đầu xử lý (tasks.py)
+# Queue depth — API set giá trị = ZCARD arq:queue mỗi lần /metrics được scrape
+# (app.core.queue.refresh_queue_depth). Giá trị là toàn cục (đọc từ Redis), nên
+# khi chạy nhiều replica api, PromQL dùng max(...) chứ không sum(...).
 # Day 4: Grafana/Prometheus scrape /metrics để vẽ chart queue backlog
 ingestion_queue_depth = Gauge(
     "insighthub_ingestion_queue_depth",

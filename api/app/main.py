@@ -13,7 +13,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from app.core.config import get_settings
 from app.core.db import close_pool, get_pool
 from app.core.metrics import http_requests_total
-from app.core.queue import close_arq_pool, open_arq_pool
+from app.core.queue import close_arq_pool, open_arq_pool, refresh_queue_depth
 from app.routers import chat, documents, health
 
 settings = get_settings()
@@ -55,6 +55,7 @@ async def metrics_middleware(request: Request, call_next):
 
 @app.get("/metrics")
 async def metrics():
+    await refresh_queue_depth()
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 

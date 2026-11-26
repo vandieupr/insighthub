@@ -16,6 +16,7 @@ API chỉ nhận file, lưu metadata, enqueue job, trả về ngay.
 Hàm process_document() bên dưới được viết sao cho có thể TÁI SỬ DỤNG
 nguyên vẹn trong worker — chỉ cần đổi cách gọi (sync → enqueue).
 """
+
 import logging
 
 from app.core.db import get_conn
@@ -58,6 +59,15 @@ def process_document(document_id: int, filename: str, content: bytes) -> int:
 
     with get_conn() as conn:
         with conn.transaction():
+            # Idempotent: worker có thể chạy lại job (retry / cancel sau commit) →
+            # xoá chunk cũ trong cùng transaction để không bị nhân đôi.
+            # Khoá row documents trước: 2 job cùng document chạy song song sẽ
+            # tuần tự hoá; DELETE của job sau (READ COMMITTED, snapshot mới)
+            # thấy và xoá chunk job trước vừa commit.
+            conn.execute(
+                "SELECT id FROM documents WHERE id = %s FOR UPDATE", (document_id,)
+            )
+            conn.execute("DELETE FROM chunks WHERE document_id = %s", (document_id,))
             for chunk, vector in zip(chunks, vectors):
                 conn.execute(
                     """

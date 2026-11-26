@@ -140,11 +140,18 @@ fi
 # Bonus: pytest
 echo "[7] Tests pass..."
 if command -v pytest >/dev/null 2>&1 && [ -d api/tests ]; then
-  if (cd api && pytest -q --tb=no 2>&1 | grep -q "passed"); then
-    ok "pytest pass"
-  else
-    yellow "  [WARN] pytest có failure (kiểm tra trước commit)"
-  fi
+  # Dựa vào exit code của pytest — grep "passed" sẽ khớp cả "2 failed, 6 passed".
+  for dir in api ingestion-worker; do
+    [ -d "$dir/tests" ] || continue
+    SUMMARY=$(cd "$dir" && pytest -q --tb=no -p no:cacheprovider 2>&1)
+    RC=$?
+    LAST=$(echo "$SUMMARY" | tail -1)
+    if [ "$RC" -eq 0 ]; then
+      ok "pytest $dir: $LAST"
+    else
+      yellow "  [WARN] pytest $dir có failure (exit $RC): $LAST"
+    fi
+  done
 else
   yellow "  [SKIP] pytest không available hoặc không có tests/"
 fi
